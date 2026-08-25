@@ -1,73 +1,52 @@
-import pandas as pd
-
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-# LEITURA DATASET
-df = pd.read_csv("dataset_triagem_sintetico.csv")
-
-print(df.head())
-print(df.shape)
-print(df.columns)
-
-# EXCLUINDO COLUNA RISCO DE X E PEGANDO EM Y
-x = df.drop("risco", axis=1)
-y = df["risco"]
-
-# X = ENTRADAS / Y = RESPOSTAS
-print(x.head())
-print(y.head())
-print(type(x))
-print(type(y))
-
-# TRANSFORMA LABEL (RISCO) EM NUMERICO
-label_encoder = LabelEncoder()
-y_codificado = label_encoder.fit_transform(y)
-
-print(y.head())
-print(y_codificado[:5])
-print(label_encoder.classes_)
-
-x_treino, x_teste, y_treino, y_teste = train_test_split(
-    x,
-    y_codificado,
-    test_size=0.2,
-    random_state=42,
-    stratify=y_codificado
-)
-
-print(x_treino.shape)
-print(x_teste.shape)
-print(len(y_treino))
-print(len(y_teste))
-
-modelo_rf = RandomForestClassifier(
-    n_estimators=100,
-    random_state=42
-)
-
-modelo_rf.fit(x_treino, y_treino)
-
-y_pred_rf = modelo_rf.predict(x_teste)
-
-print(y_pred_rf[:10])
+from preprocessing import preparar_dados
 
 
-# =========================
-# MÉTRICAS
-# =========================
-acuracia_rf = accuracy_score(y_teste, y_pred_rf)
-matriz_rf = confusion_matrix(y_teste, y_pred_rf)
-relatorio_rf = classification_report(
-    y_teste,
-    y_pred_rf,
-    target_names=label_encoder.classes_
-)
+N_ESTIMATORS = 100
+RANDOM_STATE_MODELO = 42
 
-print("Acurácia Random Forest:", acuracia_rf)
-print("\nMatriz de confusão Random Forest:")
-print(matriz_rf)
-print("\nRelatório de classificação Random Forest:")
-print(relatorio_rf)
+
+def criar_modelo() -> RandomForestClassifier:
+    return RandomForestClassifier(
+        n_estimators=N_ESTIMATORS,
+        random_state=RANDOM_STATE_MODELO,
+    )
+
+
+def main() -> None:
+    (
+        X_treino,
+        X_teste,
+        y_treino,
+        y_teste,
+        label_encoder,
+    ) = preparar_dados()
+
+    modelo_rf = criar_modelo()
+
+    modelo_rf.fit(X_treino, y_treino)
+    y_pred_rf = modelo_rf.predict(X_teste)
+
+    acuracia_rf = accuracy_score(y_teste, y_pred_rf)
+    matriz_rf = confusion_matrix(y_teste, y_pred_rf)
+    relatorio_rf = classification_report(
+        y_teste,
+        y_pred_rf,
+        target_names=label_encoder.classes_,
+    )
+
+    print("\n=== RANDOM FOREST ===")
+    print(f"Classes codificadas: {list(label_encoder.classes_)}")
+    print(f"Acurácia: {acuracia_rf:.3f}")
+
+    print("\nMatriz de confusão:")
+    print(matriz_rf)
+
+    print("\nRelatório de classificação:")
+    print(relatorio_rf)
+
+
+if __name__ == "__main__":
+    main()

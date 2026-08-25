@@ -1,36 +1,33 @@
 import random
+from pathlib import Path
+
 import pandas as pd
 
 
-# DEFININDO CONSTANTES DE CONFIGURACOES GERAIS 
 TOTAL_REGISTROS = 5000
-ARQUIVO_SAIDA = "dataset_triagem_sintetico.csv"
 SEED = 42
+
+PASTA_PROJETO = Path(__file__).resolve().parent.parent
+ARQUIVO_SAIDA = PASTA_PROJETO / "data" / "dataset_triagem_sintetico.csv"
 
 random.seed(SEED)
 
-# =========================
-# FUNÇÕES AUXILIARES
-# =========================
+
 def gerar_inteiro(valor_min: int, valor_max: int) -> int:
-    return random.randint(valor_min,valor_max)
+    return random.randint(valor_min, valor_max)
+
 
 def gerar_decimal(valor_min: float, valor_max: float, casas: int = 1) -> float:
-    return round(random.uniform(valor_min,valor_max), casas)
+    return round(random.uniform(valor_min, valor_max), casas)
+
 
 def gerar_binario(probabilidade_1: float) -> int:
-    """
-    Retorna 1 com a probabilidade informada, senão 0.
-    Exemplo: gerar_binario(0.2) => 20% de chance de retornar 1
-    """
-    return 1 if random.random() < probabilidade_1 else 0
-    
-def limitar_valor(valor, minimo, maximo):
-    return max(minimo, min (valor, maximo))
+    if not 0 <= probabilidade_1 <= 1:
+        raise ValueError("A probabilidade deve estar entre 0 e 1.")
 
-# =========================
-# GERAÇÃO POR CLASSE
-# =========================
+    return 1 if random.random() < probabilidade_1 else 0
+
+
 def gerar_paciente_baixo() -> dict:
     idade = gerar_inteiro(0, 85)
     temperatura = gerar_decimal(35.8, 37.7)
@@ -46,27 +43,27 @@ def gerar_paciente_baixo() -> dict:
     consciencia_alterada = gerar_binario(0.01)
     mobilidade_reduzida = gerar_binario(0.05)
 
-    # Pequenos ruídos plausíveis
     if idade > 70 and comorbidades == 0 and random.random() < 0.30:
         comorbidades = 1
 
-
     return {
-            "idade": idade,
-            "temperatura": temperatura,
-            "frequencia_cardiaca": frequencia_cardiaca,
-            "saturacao_oxigenio": saturacao_oxigenio,
-            "pressao_sistolica": pressao_sistolica,
-            "dor": dor,
-            "dispneia": dispneia,
-            "febre": febre,
-            "comorbidades": comorbidades,
-            "tempo_espera_min": tempo_espera_min,
-            "sangramento": sangramento,
-            "consciencia_alterada": consciencia_alterada,
-            "mobilidade_reduzida": mobilidade_reduzida,
-            "risco": "baixo",
-        }     
+        "idade": idade,
+        "temperatura": temperatura,
+        "frequencia_cardiaca": frequencia_cardiaca,
+        "saturacao_oxigenio": saturacao_oxigenio,
+        "pressao_sistolica": pressao_sistolica,
+        "dor": dor,
+        "dispneia": dispneia,
+        "febre": febre,
+        "comorbidades": comorbidades,
+        "tempo_espera_min": tempo_espera_min,
+        "sangramento": sangramento,
+        "consciencia_alterada": consciencia_alterada,
+        "mobilidade_reduzida": mobilidade_reduzida,
+        "risco": "baixo",
+    }
+
+
 def gerar_paciente_medio() -> dict:
     idade = gerar_inteiro(10, 95)
     temperatura = gerar_decimal(36.4, 38.6)
@@ -82,7 +79,6 @@ def gerar_paciente_medio() -> dict:
     consciencia_alterada = gerar_binario(0.03)
     mobilidade_reduzida = gerar_binario(0.12)
 
-    # Ajustes de coerência simples
     if dispneia == 1 and saturacao_oxigenio > 95 and random.random() < 0.50:
         saturacao_oxigenio = gerar_inteiro(90, 95)
 
@@ -122,7 +118,6 @@ def gerar_paciente_alto() -> dict:
     consciencia_alterada = gerar_binario(0.25)
     mobilidade_reduzida = gerar_binario(0.40)
 
-    # Ajustes de coerência
     if consciencia_alterada == 1 and saturacao_oxigenio > 92 and random.random() < 0.60:
         saturacao_oxigenio = gerar_inteiro(75, 92)
 
@@ -150,18 +145,15 @@ def gerar_paciente_alto() -> dict:
     }
 
 
-# =========================
-# GERAÇÃO GERAL DO DATASET
-# =========================
 def gerar_registro_por_risco(risco: str) -> dict:
     if risco == "baixo":
         return gerar_paciente_baixo()
-    elif risco == "medio":
+    if risco == "medio":
         return gerar_paciente_medio()
-    elif risco == "alto":
+    if risco == "alto":
         return gerar_paciente_alto()
-    else:
-        raise ValueError(f"Risco inválido: {risco}")
+
+    raise ValueError(f"Risco inválido: {risco}")
 
 
 def gerar_dataset(total_registros: int) -> pd.DataFrame:
@@ -174,7 +166,6 @@ def gerar_dataset(total_registros: int) -> pd.DataFrame:
     registros = [gerar_registro_por_risco(risco) for risco in riscos]
     df = pd.DataFrame(registros)
 
-    # Garantia extra de limites
     df["idade"] = df["idade"].clip(0, 100)
     df["temperatura"] = df["temperatura"].clip(34.0, 41.0)
     df["frequencia_cardiaca"] = df["frequencia_cardiaca"].clip(40, 180)
@@ -192,17 +183,40 @@ def gerar_dataset(total_registros: int) -> pd.DataFrame:
     return df
 
 
-# =========================
-# RELATÓRIO BÁSICO
-# =========================
+def validar_dataset(df: pd.DataFrame, total_esperado: int) -> None:
+    if len(df) != total_esperado:
+        raise ValueError(
+            f"Quantidade de registros inválida: {len(df)}. "
+            f"Esperado: {total_esperado}."
+        )
+
+    if df.isnull().any().any():
+        raise ValueError("O dataset contém valores nulos.")
+
+    if "risco" not in df.columns:
+        raise ValueError("A coluna alvo 'risco' não foi encontrada.")
+
+    classes_validas = {"baixo", "medio", "alto"}
+    classes_encontradas = set(df["risco"].unique())
+
+    if not classes_encontradas.issubset(classes_validas):
+        raise ValueError(
+            f"Foram encontradas classes inválidas: {classes_encontradas}"
+        )
+
+
 def imprimir_resumo(df: pd.DataFrame) -> None:
     print("\n=== TAMANHO DO DATASET ===")
     print(df.shape)
 
     print("\n=== DISTRIBUIÇÃO DA CLASSE RISCO ===")
     print(df["risco"].value_counts())
+
     print("\n=== DISTRIBUIÇÃO PERCENTUAL ===")
     print((df["risco"].value_counts(normalize=True) * 100).round(2))
+
+    print("\n=== DUPLICIDADES ===")
+    print(df.duplicated().sum())
 
     print("\n=== MÉDIAS POR CLASSE ===")
     colunas_numericas = [
@@ -220,14 +234,21 @@ def imprimir_resumo(df: pd.DataFrame) -> None:
         "consciencia_alterada",
         "mobilidade_reduzida",
     ]
+
     print(df.groupby("risco")[colunas_numericas].mean().round(2))
 
 
-# =========================
-# EXECUÇÃO PRINCIPAL
-# =========================
-if __name__ == "__main__":
+def main() -> None:
     df = gerar_dataset(TOTAL_REGISTROS)
+
+    validar_dataset(df, TOTAL_REGISTROS)
     imprimir_resumo(df)
+
+    ARQUIVO_SAIDA.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(ARQUIVO_SAIDA, index=False, encoding="utf-8")
-    print(f"\nArquivo salvo com sucesso: {ARQUIVO_SAIDA}") 
+
+    print(f"\nArquivo salvo com sucesso: {ARQUIVO_SAIDA}")
+
+
+if __name__ == "__main__":
+    main()

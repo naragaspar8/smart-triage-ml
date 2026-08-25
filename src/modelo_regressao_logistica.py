@@ -1,77 +1,62 @@
-import pandas as pd
-
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-# LE O ARQUIVO CSV
-df = pd.read_csv("dataset_triagem_sintetico.csv")
-
-print(df.head())
-print(df.shape)
-print(df.columns)
-
-# REMOVE A COLUNA 'RISCO' DA TABELA
-x = df.drop("risco", axis=1)
-
-# PEGA SOMENTE A COLUNA 'RISCO'
-y = df["risco"]
-
-print(x.head())
-print(y.head())
-print(type(x))
-print(type(y))
-
-# TRANFORMANDO 'RISCO' PARA NUMÉRICO
-label_encoder = LabelEncoder ()
-y_codificado = label_encoder.fit_transform(y)
-
-print(y.head())
-print(y_codificado[:5])
-print(label_encoder.classes_)
-
-# DIVISAO DATASET TREINO E TESTE
-x_treino, x_teste, y_treino, y_teste = train_test_split(
-    x,
-    y_codificado,
-    test_size=0.2,
-    random_state=42,
-    stratify=y_codificado
-)
-
-print(x_treino.shape)
-print(x_teste.shape)
-print(len(y_treino))
-print(len(y_teste))
+from preprocessing import preparar_dados
 
 
-# PADRONIZACAO DE VARIAVEIS 
-scaler = StandardScaler()
-
-x_treino_escalado = scaler.fit_transform(x_treino)
-x_teste_escalado = scaler.transform(x_teste)
-
-print(x_treino_escalado[:3])
-print(x_teste_escalado[:3])
+MAX_ITER = 1000
+SOLVER = "lbfgs"
 
 
-# REGRESSAO LOGISTICA
-modelo = LogisticRegression(max_iter=1000)
-modelo.fit(x_treino_escalado, y_treino)
+def criar_modelo() -> Pipeline:
+    return Pipeline(
+        steps=[
+            ("scaler", StandardScaler()),
+            (
+                "modelo",
+                LogisticRegression(
+                    max_iter=MAX_ITER,
+                    solver=SOLVER,
+                ),
+            ),
+        ]
+    )
 
-y_pred = modelo.predict(x_teste_escalado)
 
-print(y_pred[:10])
+def main() -> None:
+    (
+        X_treino,
+        X_teste,
+        y_treino,
+        y_teste,
+        label_encoder,
+    ) = preparar_dados()
 
-# ACURÁCIA, MATRIZ E RELATÓRIO
-acuracia = accuracy_score(y_teste, y_pred)
-matriz = confusion_matrix(y_teste, y_pred)
-relatorio = classification_report(y_teste, y_pred, target_names=label_encoder.classes_)
+    modelo = criar_modelo()
 
-print("\nAcurácia: ", acuracia)
-print("\nMatriz de Confusâo:")
-print(matriz)
-print("\nRelatório de Classificação:")
-print(relatorio)
+    modelo.fit(X_treino, y_treino)
+    y_pred = modelo.predict(X_teste)
+
+    acuracia = accuracy_score(y_teste, y_pred)
+    matriz = confusion_matrix(y_teste, y_pred)
+    relatorio = classification_report(
+        y_teste,
+        y_pred,
+        target_names=label_encoder.classes_,
+    )
+
+    print("\n=== REGRESSÃO LOGÍSTICA ===")
+    print(f"Classes codificadas: {list(label_encoder.classes_)}")
+    print(f"Acurácia: {acuracia:.3f}")
+
+    print("\nMatriz de confusão:")
+    print(matriz)
+
+    print("\nRelatório de classificação:")
+    print(relatorio)
+
+
+if __name__ == "__main__":
+    main()

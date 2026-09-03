@@ -6,7 +6,18 @@ __pycache__/
 # Virtual environments
 meuenv/
 venv/
+.venv/
+
+# Environment variables / secrets
 .env
+.env.*
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
